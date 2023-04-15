@@ -89,7 +89,7 @@
 //       </button>
 //     </div>
 //   );
-// }
+// } 
 
 // export default App;
 
@@ -103,6 +103,37 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 function App() {
   const canvasRef = useRef(null);
   const [jointSliders, setJointSliders] = useState({});
+  const [robot, setRobot] = useState(null);
+  const [viewer, setViewer] = useState(null);
+  const [scene, setScene] = useState(null);
+
+  // Set up lights and camera
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  directionalLight.position.set(0, 1, 0);
+  
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 2;
+
+  useEffect(() => {
+    if (!scene) return;
+  }, [scene])
+
+  useEffect(() => {
+    if (!robot) return;
+    scene.add(ambientLight, directionalLight, robot);
+    buildJointSliders();
+    getJointConfiguration();
+  }, [robot])
+
+  const getJointConfiguration = () => {
+    console.log(robot.joints)
+    
+    Object.keys(robot.joints).reduce((_, jointName) => {
+      const joint = robot.joints[jointName];
+      console.log(jointName, joint.angle);
+    }, {});
+  }
 
   const updateJointValue = (jointName, value) => {
     const robot = jointSliders.robot;
@@ -111,7 +142,7 @@ function App() {
     }
   };
 
-  const buildJointSliders = (robot) => {
+  const buildJointSliders = () => {
     const newJointSliders = Object.keys(robot.joints).reduce((sliders, jointName) => {
       const joint = robot.joints[jointName];
       sliders[jointName] = {
@@ -127,29 +158,20 @@ function App() {
   useEffect(() => {
     const manager = new THREE.LoadingManager();
     const loader = new URDFLoader(manager);
+    const scene = new THREE.Scene();
 
-    loader.load('./robot.urdf', (robot) => {
-      const scene = new THREE.Scene();
-
-      // Set up lights and camera
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-      directionalLight.position.set(0, 1, 0);
-
-      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.z = 2;
-
-      scene.add(ambientLight, directionalLight, robot);
-
+    loader.load('./robot.urdf', (loadedRobot) => {
+      setRobot(loadedRobot);
+      setViewer(loader);
+      setScene(scene);
+    
       const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current });
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(window.innerWidth, window.innerHeight*0.9);
 
       // Set up OrbitControls
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.target.set(0, 0, 0);
       controls.update();
-
-      buildJointSliders(robot);
 
       const animate = () => {
         requestAnimationFrame(animate);
@@ -165,7 +187,7 @@ function App() {
     <>
       <canvas
         ref={canvasRef}
-        style={{ width: '100vw', height: '100vh' }}
+        style={{ width: '100vw', height: '100vh'}}
       />
       <div style={{ position: 'absolute', top: 10, left: 10 }}>
         {Object.entries(jointSliders).map(([jointName, slider]) => (
@@ -189,6 +211,9 @@ function App() {
             </div>
           )
         ))}
+             <button onClick={getJointConfiguration} style={{ position: 'absolute', top: 100, right: 10 }}>
+       Get Joint Values
+       </button>
       </div>
     </>
   );
