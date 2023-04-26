@@ -106,6 +106,9 @@ function App() {
   const [robot, setRobot] = useState(null);
   const [viewer, setViewer] = useState(null);
   const [scene, setScene] = useState(null);
+  const [waypoints, setWaypoints] = useState({});
+  const [behaviors, setBehaviors] = useState([]);
+  const [selectedWaypoint, setSelectedWaypoint] = useState(null);
 
   // Set up lights and camera
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -155,6 +158,38 @@ function App() {
     setJointSliders(newJointSliders);
   };
 
+  const handleSaveWaypoint = () => {
+    const currentJointAngles = Object.keys(robot.joints).reduce((acc, jointName) => {
+      const joint = robot.joints[jointName];
+      return { ...acc, [jointName]: joint.angle };
+    }, {});
+    console.log(currentJointAngles);
+    setBehaviors([...behaviors, currentJointAngles]);
+    console.log(behaviors);
+  }
+  
+  const handleSetWaypoint = (index) => {
+    const behavior = behaviors[index];
+
+    setSelectedWaypoint(index);
+
+    setJointAngles(behavior);
+  }
+
+  function setJointAngles(waypoint) {
+
+    // Loop through the joint names in the waypoint map
+    Object.keys(waypoint).forEach(jointName => {
+      // Get the joint angle from the waypoint
+      const jointAngle = waypoint[jointName];
+  
+      // Set the joint angle using your setJointValue function
+      updateJointValue(jointName, jointAngle);
+    });
+  }
+
+
+
   useEffect(() => {
     const manager = new THREE.LoadingManager();
     const loader = new URDFLoader(manager);
@@ -167,6 +202,7 @@ function App() {
     
       const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current });
       renderer.setSize(window.innerWidth, window.innerHeight*0.9);
+      renderer.setClearColor(0xADD8E6);
 
       // Set up OrbitControls
       const controls = new OrbitControls(camera, renderer.domElement);
@@ -187,7 +223,7 @@ function App() {
     <>
       <canvas
         ref={canvasRef}
-        style={{ width: '100vw', height: '100vh'}}
+        style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100'}}
       />
       <div style={{ position: 'absolute', top: 10, left: 10 }}>
         {Object.entries(jointSliders).map(([jointName, slider]) => (
@@ -208,13 +244,28 @@ function App() {
                   }));
                 }}
               />
+              <span>{slider.value.toFixed(2)}</span>
             </div>
           )
         ))}
-             <button onClick={getJointConfiguration} style={{ position: 'absolute', top: 100, right: 10 }}>
+        <button onClick={handleSaveWaypoint} style={{ position: 'absolute', top: 100, right: 10 }}>Save New Waypoint</button>
+
+        <button onClick={getJointConfiguration} style={{ position: 'absolute', top: 70, right: 10 }}>
        Get Joint Values
-       </button>
+        </button>
+
       </div>
+
+      <div style={{ position: 'absolute', top: 10, right: 10 }}>
+          <h2>Waypoints</h2>
+          {behaviors.map((behavior, index) => (
+            <div key={index}>
+              <button onClick={() => handleSetWaypoint(index)}>
+                Waypoint {index + 1}
+              </button>
+            </div>
+          ))}
+        </div>
     </>
   );
 }
